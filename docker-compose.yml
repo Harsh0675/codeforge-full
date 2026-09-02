@@ -1,0 +1,111 @@
+services:
+  api:
+    build: ./backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql+asyncpg://codeforge:codeforge@postgres:5432/codeforge
+      CORS_ORIGINS: http://localhost:5173
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  worker:
+    build: ./backend
+    command: python -m app.worker
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql+asyncpg://codeforge:codeforge@postgres:5432/codeforge
+      RUNNER_IMAGES: codeforge-runner-python,codeforge-runner-cpp,codeforge-runner-node,codeforge-runner-java,codeforge-runner-go,codeforge-runner-rust,codeforge-runner-php
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      runner-python:
+        condition: service_completed_successfully
+      runner-cpp:
+        condition: service_completed_successfully
+      runner-node:
+        condition: service_completed_successfully
+      runner-java:
+        condition: service_completed_successfully
+      runner-go:
+        condition: service_completed_successfully
+      runner-rust:
+        condition: service_completed_successfully
+      runner-php:
+        condition: service_completed_successfully
+
+  runner-python:
+    build: ./runner-images/python
+    image: codeforge-runner-python
+    command: ["true"]
+
+  runner-cpp:
+    build: ./runner-images/cpp
+    image: codeforge-runner-cpp
+    command: ["true"]
+
+  runner-node:
+    build: ./runner-images/node
+    image: codeforge-runner-node
+    command: ["true"]
+
+  runner-java:
+    build: ./runner-images/java
+    image: codeforge-runner-java
+    command: ["true"]
+
+  runner-go:
+    build: ./runner-images/go
+    image: codeforge-runner-go
+    command: ["true"]
+
+  runner-rust:
+    build: ./runner-images/rust
+    image: codeforge-runner-rust
+    command: ["true"]
+
+  runner-php:
+    build: ./runner-images/php
+    image: codeforge-runner-php
+    command: ["true"]
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: codeforge
+      POSTGRES_PASSWORD: codeforge
+      POSTGRES_DB: codeforge
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U codeforge -d codeforge"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
