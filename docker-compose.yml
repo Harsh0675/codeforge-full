@@ -7,7 +7,7 @@ services:
     environment:
       REDIS_URL: redis://redis:6379/0
       DATABASE_URL: postgresql+asyncpg://codeforge:codeforge@postgres:5432/codeforge
-      CORS_ORIGINS: http://localhost:5173
+      CORS_ORIGINS: http://localhost:5173,https://harsh0675.github.io
     depends_on:
       redis:
         condition: service_healthy
