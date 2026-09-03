@@ -32,7 +32,7 @@ jobs:
       - name: Build frontend
         run: npm run build
         env:
-          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_API_URL: ${{ vars.VITE_API_URL || 'http://35.222.185.255:8000' }}
           VITE_BASE_PATH: /codeforge-full/
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
