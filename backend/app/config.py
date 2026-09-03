@@ -7,5 +7,7 @@ class Settings(BaseSettings):
     max_source_bytes: int = 256_000
     max_stdin_bytes: int = 64_000
     queue_timeout_seconds: int = 5
+    run_rate_limit: int = 10
+    run_rate_window_seconds: int = 60
 
 settings = Settings()

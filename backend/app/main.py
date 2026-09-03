@@ -1,5 +1,5 @@
 import time, uuid, json
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from redis.asyncio import Redis
 from .config import settings
@@ -21,7 +21,14 @@ async def health():
     return {"status": "ok", "service": "codeforge-api"}
 
 @app.post("/api/v1/runs", response_model=RunAccepted)
-async def create_run(req: RunRequest):
+async def create_run(req: RunRequest, request: Request):
+    client_ip = request.client.host if request.client else "unknown"
+    rate_key = f"rate:runs:{client_ip}"
+    request_count = await redis.incr(rate_key)
+    if request_count == 1:
+        await redis.expire(rate_key, settings.run_rate_window_seconds)
+    if request_count > settings.run_rate_limit:
+        raise HTTPException(429, "Too many run requests. Try again shortly.", headers={"Retry-After": str(settings.run_rate_window_seconds)})
     if len(req.source.encode()) > settings.max_source_bytes:
         raise HTTPException(413, "Source is too large")
     if len(req.stdin.encode()) > settings.max_stdin_bytes:
