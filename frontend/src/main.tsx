@@ -52,15 +52,21 @@ echo "Hello, {$name}!\\n";
 };
 
 function App(){
-  const [language,setLanguage]=useState("python");
-  const [code,setCode]=useState(examples.python);
-  const [stdin,setStdin]=useState("CodeForge");
+  const [language,setLanguage]=useState(()=>localStorage.getItem("codeforge-language") || "python");
+  const [code,setCode]=useState(()=>localStorage.getItem(`codeforge-code-${localStorage.getItem("codeforge-language") || "python"}`) || examples[localStorage.getItem("codeforge-language") || "python"]);
+  const [stdin,setStdin]=useState(()=>localStorage.getItem("codeforge-stdin") || "CodeForge");
   const [runId,setRunId]=useState("");
   const [result,setResult]=useState<any>(null);
   const [running,setRunning]=useState(false);
   const [error,setError]=useState("");
 
-  useEffect(()=>setCode(examples[language] || "// Write your code here"),[language]);
+  useEffect(()=>{
+    setCode(localStorage.getItem(`codeforge-code-${language}`) || examples[language] || "// Write your code here");
+    localStorage.setItem("codeforge-language", language);
+  },[language]);
+
+  useEffect(()=>localStorage.setItem(`codeforge-code-${language}`, code),[language,code]);
+  useEffect(()=>localStorage.setItem("codeforge-stdin", stdin),[stdin]);
 
   async function run(){
     setRunning(true); setResult(null); setError("");
