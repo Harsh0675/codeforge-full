@@ -3,7 +3,18 @@ import {createRoot} from "react-dom/client";
 import Editor from "@monaco-editor/react";
 import "./style.css";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const PISTON_API = "https://emkc.org/api/v2/piston/execute";
+const pistonVersions: Record<string, string> = {
+  python: "3.10.0",
+  c: "10.2.0",
+  cpp: "10.2.0",
+  java: "15.0.2",
+  javascript: "18.15.0",
+  typescript: "5.0.3",
+  go: "1.16.2",
+  rust: "1.56.0",
+  php: "8.2.3",
+};
 const examples: Record<string,string> = {
   python: `name = input()
 print(f"Hello, {name}!")`,
@@ -71,19 +82,17 @@ function App(){
   async function run(){
     setRunning(true); setResult(null); setError("");
     try {
-      const r=await fetch(`${API}/api/v1/runs`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({language,source:code,stdin})});
-      const accepted=await r.json();
-      if (!r.ok) throw new Error(accepted.detail || "The run could not be submitted.");
-      setRunId(accepted.id);
-      for (let attempt = 0; attempt < 100; attempt++) {
-        await new Promise(x=>setTimeout(x,300));
-        const rr=await fetch(`${API}/api/v1/runs/${accepted.id}`);
-        const data=await rr.json();
-        if (!rr.ok) throw new Error(data.detail || "The run result could not be loaded.");
-        setResult(data);
-        if (["finished","compile_error","runtime_error","runner_error","timeout"].includes(data.status)) return;
-      }
-      throw new Error("The run exceeded the polling limit.");
+      const r=await fetch(PISTON_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        language,
+        version: pistonVersions[language],
+        files: [{name: `main.${language === "javascript" ? "js" : language === "typescript" ? "ts" : language === "python" ? "py" : language}`, content: code}],
+        stdin,
+      })});
+      const data=await r.json();
+      if (!r.ok) throw new Error(data.message || "The run could not be submitted.");
+      const status = data.run?.code === 0 && !data.compile?.stderr ? "finished" : "runtime_error";
+      setRunId(crypto.randomUUID());
+      setResult({status, stdout: data.run?.stdout || "", stderr: data.compile?.stderr || data.run?.stderr || "", exit_code: data.run?.code ?? data.compile?.code, duration_ms: null});
     } catch (err) {
       setError(err instanceof Error ? err.message : "The run failed.");
     } finally {
